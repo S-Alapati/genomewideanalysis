@@ -1,0 +1,131 @@
+
+# Complete Pan-Genome Analysis Pipeline
+
+This repository details the steps for performing a comprehensive pan-genome analysis, as used in our study. The pipeline includes quality control, genome assembly, annotation, phylogenetic analysis, and functional genomics characterization. Below is the step-by-step guide to reproduce the analysis.
+
+---
+
+## **Pipeline Overview**
+
+1. **Raw Data Quality Control**
+   - **Software**: Trim Galore, FastQC
+   - **Steps**:
+     1. Perform adapter trimming and quality trimming on raw paired-end FASTQ reads using Trim Galore.
+     2. Assess the quality of trimmed reads with FastQC.
+
+   **Command Example**:
+   ```bash
+   trim_galore --paired --quality 20 --fastqc -o trimmed_reads/ raw_reads/sample_R1.fastq.gz raw_reads/sample_R2.fastq.gz
+   ```
+
+2. **Genome Assembly**
+   - **Software**: SPAdes
+   - **Steps**:
+     1. Assemble high-quality reads into contigs using SPAdes.
+
+   **Command Example**:
+   ```bash
+   spades.py -1 trimmed_reads/sample_R1.fastq.gz -2 trimmed_reads/sample_R2.fastq.gz -o assembly_output/
+   ```
+
+3. **Assembly Quality Assessment**
+   - **Software**: QUAST
+   - **Steps**:
+     1. Evaluate the quality of genome assemblies.
+
+   **Command Example**:
+   ```bash
+   quast.py -o quast_output/ assembly_output/contigs.fasta
+   ```
+
+4. **Genome Annotation**
+   - **Software**: PROKKA
+   - **Steps**:
+     1. Annotate assembled genomes to identify coding sequences and functional features.
+
+   **Command Example**:
+   ```bash
+   prokka --outdir annotation_output/ --prefix sample assembly_output/contigs.fasta
+   ```
+
+5. **Core Genome Alignment**
+   - **Software**: Roary
+   - **Steps**:
+     1. Generate a core genome multiple sequence alignment (MSA) from annotated genomes.
+
+   **Command Example**:
+   ```bash
+   roary -e -n -p 8 -f roary_output/ annotation_output/*.gff
+   ```
+
+6. **Phylogenetic Tree Construction**
+   - **Software**: RAxML
+   - **Steps**:
+     1. Construct a maximum-likelihood phylogenetic tree using the core genome alignment.
+
+   **Command Example**:
+   ```bash
+   raxmlHPC -s roary_output/core_gene_alignment.aln -n tree_output -m GTRGAMMA -p 12345 -x 12345 -# 100
+   ```
+
+7. **Restriction-Modification System Analysis**
+   - **Software**: REBASE
+   - **Steps**:
+     1. Query assembled genomes against the REBASE database using its inbuilt BLAST tool to detect RMS types and phase-variable RMS-1.
+
+   **Command Example**:
+   ```bash
+   blastn -query assembly_output/contigs.fasta -db rebase_db -out rms_output.txt
+   ```
+
+8. **Variant Calling**
+   - **Software**: Snippy, VCFtools
+   - **Steps**:
+     1. Perform variant calling to identify SNPs in clinical isolates.
+     2. Quantify SNPs using VCFtools.
+
+   **Command Examples**:
+   ```bash
+   snippy --cpus 8 --outdir snippy_output/ --ref reference_genome.fasta --R1 trimmed_reads/sample_R1.fastq.gz --R2 trimmed_reads/sample_R2.fastq.gz
+   vcftools --vcf snippy_output/variants.vcf --out snp_stats --freq
+   ```
+
+9. **Virulence Gene Identification**
+   - **Software**: BLASTn
+   - **Steps**:
+     1. Create a custom virulence factor database (PgVFDB) using sequences from ATCC33277 and W83.
+     2. BLAST clinical isolates against the database.
+
+   **Command Example**:
+   ```bash
+   makeblastdb -in virulence_genes.fasta -dbtype nucl -out PgVFDB
+   blastn -query assembly_output/contigs.fasta -db PgVFDB -out virulence_output.txt
+   ```
+
+10. **CRISPR Region Identification**
+    - **Software**: CRISPR Recognition Tool (CRT)
+    - **Steps**:
+      1. Identify CRISPR regions in the assembled genomes.
+
+    **Command Example**:
+    ```bash
+    crt -minNR 3 -minRL 19 assembly_output/contigs.fasta crispr_output/
+    ```
+
+11. **Data Visualization**
+    - **Software**: iTOL
+    - **Steps**:
+      1. Visualize and annotate phylogenetic trees and related datasets.
+
+---
+
+## **Repository Contents**
+
+- `scripts/`: Scripts for automation of pipeline steps.
+- `data/`: Example datasets and custom databases (e.g., PgVFDB).
+- `output/`: Sample output files for reference.
+- `README.md`: Detailed instructions on running the pipeline.
+
+---
+
+For more information, refer to the Supplemental File S3 and [GitHub repository](https://github.com/S-Alapati/genomewideanalysis).
